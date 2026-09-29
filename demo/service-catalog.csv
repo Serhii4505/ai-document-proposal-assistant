@@ -1,0 +1,4 @@
+service_code,service_name,unit,unit_price,minimum_quantity,active,currency
+AUTO_SETUP,Customer Request Automation,project,1500.00,1,true,EUR
+TRAINING,Staff Training,session,250.00,1,true,EUR
+SUPPORT,Implementation Support,hour,85.00,2,true,EUR

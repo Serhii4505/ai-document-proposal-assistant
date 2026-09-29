@@ -1,0 +1,134 @@
+{
+  "name": "AI Document Proposal Assistant - Phase 6",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "proposal-request", "responseMode": "responseNode", "options": {}},
+      "id": "intake-webhook",
+      "name": "Receive Proposal Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, -240],
+      "webhookId": ""
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.FASTAPI_BASE_URL + '/api/v1/requests' }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.body) }}",
+        "options": {"response": {"response": {"fullResponse": true, "neverError": true}}}
+      },
+      "id": "create-draft",
+      "name": "Create Draft via FastAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-480, -240]
+    },
+    {
+      "parameters": {"conditions": {"options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"}, "conditions": [{"leftValue": "={{ $json.statusCode }}", "rightValue": 201, "operator": {"type": "number", "operation": "equals"}}], "combinator": "and"}, "options": {}},
+      "id": "draft-created",
+      "name": "Draft Created?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [-240, -240]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $env.MANAGER_EMAIL }}",
+        "subject": "={{ 'Proposal draft awaiting review: ' + $json.body.proposal_id }}",
+        "emailType": "text",
+        "message": "={{ 'A proposal draft is waiting for a manager decision.\n\nProposal ID: ' + $json.body.proposal_id + '\nStatus: ' + $json.body.status + '\nPDF: ' + $env.FASTAPI_BASE_URL + $json.body.draft_pdf_url + '\nDOCX: ' + $env.FASTAPI_BASE_URL + $json.body.draft_docx_url + '\n\nUse the dedicated Approve or Reject webhook with the proposal ID, review token, manager name and a unique idempotency key. Rejection also requires a comment. No document is sent to the client.' }}",
+        "options": {}
+      },
+      "id": "notify-manager",
+      "name": "Send Draft to Manager",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [0, -340]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ { ok: true, proposal_id: $('Create Draft via FastAPI').item.json.body.proposal_id, status: 'pending_approval', manager_notified: true, client_delivery: false } }}", "options": {"responseCode": 201}},
+      "id": "intake-success",
+      "name": "Return Pending Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [240, -340]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ { ok: false, code: $json.body?.detail?.code || 'draft_generation_failed', message: $json.body?.detail?.message || 'FastAPI rejected the request', status_code: $json.statusCode } }}", "options": {"responseCode": "={{ $json.statusCode || 502 }}"}},
+      "id": "intake-error",
+      "name": "Return Creation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [0, -120]
+    },
+    {
+      "parameters": {"httpMethod": "POST", "path": "proposal-approve", "responseMode": "responseNode", "options": {}},
+      "id": "approve-webhook",
+      "name": "Manager Approve",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, 80],
+      "webhookId": ""
+    },
+    {
+      "parameters": {"method": "POST", "url": "={{ $env.FASTAPI_BASE_URL + '/api/v1/proposals/' + $json.body.proposal_id + '/approve' }}", "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ JSON.stringify({ review_token: $json.body.review_token, manager_name: $json.body.manager_name, comment: $json.body.comment || null, idempotency_key: $json.body.idempotency_key }) }}", "options": {"response": {"response": {"fullResponse": true, "neverError": true}}}},
+      "id": "approve-api",
+      "name": "Record Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-440, 80]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ $json.body }}", "options": {"responseCode": "={{ $json.statusCode }}"}},
+      "id": "approve-result",
+      "name": "Return Approval Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [-160, 80]
+    },
+    {
+      "parameters": {"httpMethod": "POST", "path": "proposal-reject", "responseMode": "responseNode", "options": {}},
+      "id": "reject-webhook",
+      "name": "Manager Reject",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-720, 280],
+      "webhookId": ""
+    },
+    {
+      "parameters": {"method": "POST", "url": "={{ $env.FASTAPI_BASE_URL + '/api/v1/proposals/' + $json.body.proposal_id + '/reject' }}", "sendBody": true, "contentType": "raw", "rawContentType": "application/json", "body": "={{ JSON.stringify({ review_token: $json.body.review_token, manager_name: $json.body.manager_name, comment: $json.body.comment, idempotency_key: $json.body.idempotency_key }) }}", "options": {"response": {"response": {"fullResponse": true, "neverError": true}}}},
+      "id": "reject-api",
+      "name": "Record Rejection",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [-440, 280]
+    },
+    {
+      "parameters": {"respondWith": "json", "responseBody": "={{ $json.body }}", "options": {"responseCode": "={{ $json.statusCode }}"}},
+      "id": "reject-result",
+      "name": "Return Rejection Result",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [-160, 280]
+    }
+  ],
+  "connections": {
+    "Receive Proposal Request": {"main": [[{"node": "Create Draft via FastAPI", "type": "main", "index": 0}]]},
+    "Create Draft via FastAPI": {"main": [[{"node": "Draft Created?", "type": "main", "index": 0}]]},
+    "Draft Created?": {"main": [[{"node": "Send Draft to Manager", "type": "main", "index": 0}], [{"node": "Return Creation Error", "type": "main", "index": 0}]]},
+    "Send Draft to Manager": {"main": [[{"node": "Return Pending Result", "type": "main", "index": 0}]]},
+    "Manager Approve": {"main": [[{"node": "Record Approval", "type": "main", "index": 0}]]},
+    "Record Approval": {"main": [[{"node": "Return Approval Result", "type": "main", "index": 0}]]},
+    "Manager Reject": {"main": [[{"node": "Record Rejection", "type": "main", "index": 0}]]},
+    "Record Rejection": {"main": [[{"node": "Return Rejection Result", "type": "main", "index": 0}]]}
+  },
+  "settings": {"executionOrder": "v1", "saveManualExecutions": true, "saveExecutionProgress": true},
+  "pinData": {},
+  "active": false,
+  "versionId": "",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}
