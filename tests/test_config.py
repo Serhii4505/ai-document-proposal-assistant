@@ -27,3 +27,22 @@ def test_rejects_invalid_vat(monkeypatch: pytest.MonkeyPatch) -> None:
 
     get_settings.cache_clear()
 
+
+@pytest.mark.parametrize(
+    ("name", "raw_value"),
+    [
+        ("VAT_RATE", "NaN"),
+        ("VAT_RATE", "Infinity"),
+        ("VOLUME_DISCOUNT_THRESHOLD", "Infinity"),
+    ],
+)
+def test_rejects_non_finite_decimals(
+    monkeypatch: pytest.MonkeyPatch, name: str, raw_value: str
+) -> None:
+    monkeypatch.setenv(name, raw_value)
+    get_settings.cache_clear()
+
+    with pytest.raises(ConfigurationError, match="finite decimal number"):
+        get_settings()
+
+    get_settings.cache_clear()

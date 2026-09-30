@@ -24,6 +24,8 @@ def _read_decimal(name: str, default: str) -> Decimal:
         value = Decimal(raw_value)
     except InvalidOperation as exc:
         raise ConfigurationError(f"{name} must be a decimal number") from exc
+    if not value.is_finite():
+        raise ConfigurationError(f"{name} must be a finite decimal number")
 
     if value < Decimal("0") or value > Decimal("1"):
         raise ConfigurationError(f"{name} must be between 0 and 1")
@@ -36,6 +38,8 @@ def _read_positive_decimal(name: str, default: str) -> Decimal:
         value = Decimal(raw_value)
     except InvalidOperation as exc:
         raise ConfigurationError(f"{name} must be a decimal number") from exc
+    if not value.is_finite():
+        raise ConfigurationError(f"{name} must be a finite decimal number")
     if value <= Decimal("0"):
         raise ConfigurationError(f"{name} must be greater than 0")
     return value
