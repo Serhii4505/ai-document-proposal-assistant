@@ -152,6 +152,6 @@ The MVP intentionally excludes OCR, production cloud deployment, multi-user auth
 
 ## Project status
 
-Phases 1–8 are implemented and verified. GitHub and Upwork publication are prepared but require separate owner approval.
+Phases 1–8 are implemented and verified. GitHub and Upwork publication are complete.
 
 Copyright © 2026 Sergey. All rights reserved. No open-source license is granted. Reuse, redistribution or commercial use requires prior written permission.
